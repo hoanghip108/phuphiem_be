@@ -8,13 +8,13 @@ services:
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-1}
       POSTGRES_DB: ${DATABASE_NAME:-phuphiem_db}
     ports:
-      - '8888:5432'
+      - "8888:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - phuphiem_network
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${DATABASE_USERNAME:-root}']
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME:-root}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -34,7 +34,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - '3000:3000'
+      - "8386:8386"
     networks:
       - phuphiem_network
 

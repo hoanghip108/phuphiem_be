@@ -21,7 +21,8 @@
     "typeorm:generate": "typeorm-ts-node-commonjs migration:generate -d src/modules/database/data-source.ts src/modules/database/migrations/product-variant-table",
     "typeorm:migrate": "typeorm-ts-node-commonjs migration:run -d src/modules/database/data-source.ts",
     "typeorm:revert": "typeorm-ts-node-commonjs migration:revert -d src/modules/database/data-source.ts",
-    "typeorm:create": "typeorm-ts-node-commonjs migration:create"
+    "typeorm:create": "typeorm-ts-node-commonjs migration:create",
+    "typeorm:migrate:prod": "typeorm migration:run -d dist/modules/database/data-source.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.940.0",
