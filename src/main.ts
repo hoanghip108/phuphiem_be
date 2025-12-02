@@ -13,9 +13,15 @@ async function bootstrap() {
   // Global validation pipe
   app.useGlobalPipes(new CustomValidationPipe());
   // Allow all CORS
-  app.enableCors();
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: '*',
+    credentials: true,
+  });
   app.setGlobalPrefix('api/v1');
   await app.listen(port);
   console.log(`🚀 Application is running on: http://localhost:${port}`);
+  console.log(`App is enable for all origins`);
 }
 bootstrap();
