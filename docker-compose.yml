@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: phuphiem_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-root}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-1}
+      POSTGRES_DB: ${DATABASE_NAME:-phuphiem_db}
+    ports:
+      - '8888:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - phuphiem_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DATABASE_USERNAME:-root}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phuphiem_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+    networks:
+      - phuphiem_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  phuphiem_network:
+    driver: bridge
