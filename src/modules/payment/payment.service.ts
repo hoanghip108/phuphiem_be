@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
   Injectable,
@@ -153,6 +152,18 @@ export class PaymentService {
     const now = new Date();
     const expireDate = new Date(now.getTime() + 15 * 60 * 1000); // +15 minutes
 
+    const vnpCreateDate = this.formatDate(now);
+    const vnpExpireDate = this.formatDate(expireDate);
+
+    // Debug log
+    console.log('VNPay Date Debug:', {
+      serverNow: now.toISOString(),
+      serverExpire: expireDate.toISOString(),
+      vnpCreateDate,
+      vnpExpireDate,
+      timezoneOffset: now.getTimezoneOffset(),
+    });
+
     const baseParams: Record<string, string> = {
       vnp_Version: '2.1.0',
       vnp_Command: 'pay',
@@ -165,14 +176,15 @@ export class PaymentService {
       vnp_Locale: dto.locale ?? 'vn',
       vnp_ReturnUrl: this.vnpReturnUrl,
       vnp_IpAddr: clientIp, // IP address of customer
-      vnp_CreateDate: this.formatDate(now),
-      vnp_ExpireDate: this.formatDate(expireDate),
+      vnp_CreateDate: vnpCreateDate,
+      vnp_ExpireDate: vnpExpireDate,
     };
 
     return baseParams;
   }
 
   private formatDate(date: Date) {
+    // Sử dụng giờ local của môi trường chạy (nên cấu hình TZ=Asia/Ho_Chi_Minh trên server)
     const pad = (n: number) => n.toString().padStart(2, '0');
     const year = date.getFullYear();
     const month = pad(date.getMonth() + 1);
