@@ -3,6 +3,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../database/entities/users/user.entity';
+import { Cart } from '../database/entities/carts/cart.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
@@ -22,7 +23,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
         secret: configService.get<string>('JWT_SECRET', 'secret'),
       }),
     }),
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, Cart]),
   ],
   exports: [PassportModule, JwtModule, JwtAuthGuard],
 })

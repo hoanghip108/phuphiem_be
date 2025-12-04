@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { Cart } from '../database/entities/carts/cart.entity';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +21,8 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
+    @InjectRepository(Cart)
+    private readonly cartRepository: Repository<Cart>,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<User> {
@@ -51,7 +54,12 @@ export class AuthService {
       role: UserRole.CLIENT,
       userDetails,
     });
-    return this.userRepository.save(user);
+    const savedUser = await this.userRepository.save(user);
+    const cart = this.cartRepository.create({
+      user,
+    });
+    await this.cartRepository.save(cart);
+    return savedUser;
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponse> {

@@ -14,7 +14,8 @@ import { OrderStatus } from 'src/constants/order';
 import { Order } from '../database/entities/orders/order.entity';
 import { OrderDetail } from '../database/entities/orders/order-detail.entity';
 import { VnpayIpnDto } from './dto/vnpay-ipn.dto';
-
+import { Cart } from '../database/entities/carts/cart.entity';
+import { CartItem } from '../database/entities/carts/cart-item.entity';
 @Injectable()
 export class PaymentService {
   private readonly vnpTmnCode: string;
@@ -33,6 +34,10 @@ export class PaymentService {
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(OrderDetail)
     private readonly orderDetailRepository: Repository<OrderDetail>,
+    @InjectRepository(Cart)
+    private readonly cartRepository: Repository<Cart>,
+    @InjectRepository(CartItem)
+    private readonly cartItemRepository: Repository<CartItem>,
   ) {
     this.vnpTmnCode = this.configService.get<string>('VNPAY_TMN_CODE') ?? '';
     this.vnpHashSecret =
@@ -51,7 +56,11 @@ export class PaymentService {
     }
   }
 
-  async createPaymentUrl(dto: CreatePaymentDto, clientIp: string) {
+  async createPaymentUrl(
+    dto: CreatePaymentDto,
+    clientIp: string,
+    userId?: number,
+  ) {
     const productVariants = await this.productVariantRepository.find({
       where: { id: In(dto.productVariants.map((v) => v.variantId)) },
     });
@@ -61,6 +70,7 @@ export class PaymentService {
     const order = this.orderRepository.create({
       status: OrderStatus.PENDING,
       note: dto.note,
+      ...(userId ? { user: { id: userId } as Order['user'] } : {}),
     });
     const savedOrder = await this.orderRepository.save(order);
     const orderDetails = productVariants.map((variant) =>
@@ -82,6 +92,7 @@ export class PaymentService {
       clientIp,
       totalOrderAmount,
       savedOrder.id,
+      userId ?? 0,
     );
 
     if (dto.bankCode) {
@@ -111,7 +122,6 @@ export class PaymentService {
   }
 
   async handleIpn(query: VnpayIpnDto) {
-    console.log('IPN query', query);
     const { isValid, data } = this.verifySignature(
       query as unknown as Record<string, string>,
     );
@@ -125,7 +135,7 @@ export class PaymentService {
 
     if (responseCode === '00') {
       // TODO: update order status here
-      const orderId = Number(data.vnp_TxnRef);
+      const { orderId } = this.decodeTxnRef(data.vnp_TxnRef);
       const order = await this.orderRepository.findOne({
         where: { id: orderId },
       });
@@ -135,7 +145,27 @@ export class PaymentService {
       }
       order.status = OrderStatus.PAID;
       await this.orderRepository.save(order);
-      console.log('Order updated');
+      const orderDetails = await this.orderDetailRepository.find({
+        where: { order: { id: orderId } },
+      });
+      for (const orderDetail of orderDetails) {
+        const cartItem = await this.cartItemRepository.findOne({
+          where: {
+            cart: { user: { id: order.user.id } },
+            variant: { id: orderDetail.variant.id },
+          },
+        });
+        if (cartItem) {
+          const newQuantity = cartItem.quantity - orderDetail.quantity;
+          if (newQuantity > 0) {
+            cartItem.quantity = newQuantity;
+            await this.cartItemRepository.save(cartItem);
+          } else {
+            await this.cartItemRepository.remove(cartItem);
+          }
+          await this.cartItemRepository.save(cartItem);
+        }
+      }
       return { RspCode: '00', Message: 'Success' };
     }
 
@@ -148,29 +178,21 @@ export class PaymentService {
     clientIp: string,
     totalAmount: number,
     orderId: number,
+    userId: number,
   ) {
     const now = new Date();
     const expireDate = new Date(now.getTime() + 15 * 60 * 1000); // +15 minutes
 
     const vnpCreateDate = this.formatDate(now);
     const vnpExpireDate = this.formatDate(expireDate);
-
-    // Debug log
-    console.log('VNPay Date Debug:', {
-      serverNow: now.toISOString(),
-      serverExpire: expireDate.toISOString(),
-      vnpCreateDate,
-      vnpExpireDate,
-      timezoneOffset: now.getTimezoneOffset(),
-    });
-
+    const vnp_TxnRef = this.encodeTxnRef(userId, orderId);
     const baseParams: Record<string, string> = {
       vnp_Version: '2.1.0',
       vnp_Command: 'pay',
       vnp_TmnCode: this.vnpTmnCode,
       vnp_Amount: (totalAmount * 100).toString(),
       vnp_CurrCode: 'VND',
-      vnp_TxnRef: orderId.toString(),
+      vnp_TxnRef,
       vnp_OrderInfo: `Order ${orderId} - ${totalAmount} VND`,
       vnp_OrderType: 'other',
       vnp_Locale: dto.locale ?? 'vn',
@@ -238,5 +260,30 @@ export class PaymentService {
       (receivedSecureHash ?? '').toLowerCase() === calculatedHash.toLowerCase();
 
     return { isValid, data };
+  }
+
+  private encodeTxnRef(userId: number, orderId: number): string {
+    const payload = `${userId}:${orderId}`;
+    return Buffer.from(payload, 'utf8').toString('base64');
+  }
+
+  private decodeTxnRef(ref: string): {
+    userId: number;
+    orderId: number;
+  } {
+    try {
+      const decoded = Buffer.from(ref, 'base64').toString('utf8');
+      const [userIdStr, orderIdStr] = decoded.split(':');
+      const userId = Number(userIdStr);
+      const orderId = Number(orderIdStr);
+
+      if (!userId || !orderId) {
+        throw new Error('Invalid ids');
+      }
+
+      return { userId, orderId };
+    } catch {
+      throw new BadRequestException('Invalid transaction reference');
+    }
   }
 }

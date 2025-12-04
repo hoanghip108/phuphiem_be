@@ -7,10 +7,21 @@ import { ProductVariant } from '../database/entities/products/product-variant.en
 import { Product } from '../database/entities/products/product.entity';
 import { Order } from '../database/entities/orders/order.entity';
 import { OrderDetail } from '../database/entities/orders/order-detail.entity';
+import { AuthModule } from '../auth/auth.module';
+import { Cart } from '../database/entities/carts/cart.entity';
+import { CartItem } from '../database/entities/carts/cart-item.entity';
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([ProductVariant, Product, Order, OrderDetail]),
+    AuthModule,
+    TypeOrmModule.forFeature([
+      ProductVariant,
+      Product,
+      Order,
+      OrderDetail,
+      Cart,
+      CartItem,
+    ]),
   ],
   controllers: [PaymentController],
   providers: [PaymentService],

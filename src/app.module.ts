@@ -7,6 +7,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { ProductCategoryModule } from './modules/product-category/product-category.module';
 import { ProductsModule } from './modules/products/products.module';
 import { PaymentModule } from './modules/payment/payment.module';
+import { CartModule } from './modules/cart/cart.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PaymentModule } from './modules/payment/payment.module';
     ProductCategoryModule,
     ProductsModule,
     PaymentModule,
+    CartModule,
   ],
 })
 export class AppModule {}
