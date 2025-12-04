@@ -64,4 +64,22 @@ export class PaymentController {
   handleIpn(@Query() query: VnpayIpnDto) {
     return this.paymentService.handleIpn(query);
   }
+
+  @Get('vnpay/decode-txn-ref')
+  @ApiOperation({
+    summary: 'Decode VNPay transaction reference',
+  })
+  decodeTxnRef(@Query('txnRef') txnRef: string) {
+    return this.paymentService.decodeTxnRef(txnRef);
+  }
+  @Get('vnpay/encode-txn-ref')
+  @ApiOperation({
+    summary: 'Encode VNPay transaction reference',
+  })
+  encodeTxnRef(
+    @Query('userId') userId: number,
+    @Query('orderId') orderId: number,
+  ) {
+    return this.paymentService.encodeTxnRef(userId, orderId);
+  }
 }

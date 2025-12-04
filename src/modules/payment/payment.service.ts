@@ -134,6 +134,7 @@ export class PaymentService {
     const responseCode = data.vnp_ResponseCode;
 
     if (responseCode === '00') {
+      console.log('decoded txn ref:', this.decodeTxnRef(data.vnp_TxnRef));
       // TODO: update order status here
       const { orderId } = this.decodeTxnRef(data.vnp_TxnRef);
       const order = await this.orderRepository.findOne({
@@ -262,17 +263,18 @@ export class PaymentService {
     return { isValid, data };
   }
 
-  private encodeTxnRef(userId: number, orderId: number): string {
+  public encodeTxnRef(userId: number, orderId: number): string {
     const payload = `${userId}:${orderId}`;
     return Buffer.from(payload, 'utf8').toString('base64');
   }
 
-  private decodeTxnRef(ref: string): {
+  public decodeTxnRef(ref: string): {
     userId: number;
     orderId: number;
   } {
     try {
       const decoded = Buffer.from(ref, 'base64').toString('utf8');
+      console.log('decoded:', decoded);
       const [userIdStr, orderIdStr] = decoded.split(':');
       const userId = Number(userIdStr);
       const orderId = Number(orderIdStr);
