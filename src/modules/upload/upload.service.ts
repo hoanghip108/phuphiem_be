@@ -7,6 +7,7 @@ import {
   S3ClientConfig,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { AppLogger } from '../../common/logger/logger.helper';
 
 // Simple typing for uploaded file to avoid depending on Express.Multer global types
 interface UploadedFile {
@@ -74,7 +75,10 @@ export class UploadService {
         signedUrl,
       };
     } catch (error) {
-      console.error('Upload to Backblaze B2 failed', error);
+      AppLogger.error('Upload to Backblaze B2 failed', error, 'UploadService', {
+        fileName: file.originalname,
+        bucketName: this.bucketName,
+      });
       throw new InternalServerErrorException('Upload failed');
     }
   }

@@ -4,15 +4,25 @@ import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { CustomValidationPipe } from './common/pipes/validation.pipe';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger } from '@nestjs/common';
+import { AppLogger } from './common/logger/logger.helper';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: AppLogger.instance,
+  });
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);
+  const logger = new Logger('Bootstrap');
 
   // Global validation pipe
   app.useGlobalPipes(new CustomValidationPipe());
+
+  // Global logging interceptor
+  app.useGlobalInterceptors(new LoggingInterceptor());
+
   // Allow all CORS
   app.enableCors({
     origin: true,
@@ -43,8 +53,8 @@ async function bootstrap() {
   });
 
   await app.listen(port);
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📘 Swagger docs available at: http://localhost:${port}/docs`);
-  console.log(`App is enable for all origins`);
+  logger.log(`🚀 Application is running on: http://localhost:${port}`);
+  logger.log(`📘 Swagger docs available at: http://localhost:${port}/docs`);
+  logger.log(`App is enable for all origins`);
 }
 bootstrap();

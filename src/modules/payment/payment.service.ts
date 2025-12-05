@@ -16,6 +16,7 @@ import { OrderDetail } from '../database/entities/orders/order-detail.entity';
 import { VnpayIpnDto } from './dto/vnpay-ipn.dto';
 import { Cart } from '../database/entities/carts/cart.entity';
 import { CartItem } from '../database/entities/carts/cart-item.entity';
+import { AppLogger } from '../../common/logger/logger.helper';
 @Injectable()
 export class PaymentService {
   private readonly vnpTmnCode: string;
@@ -127,50 +128,67 @@ export class PaymentService {
     );
 
     if (!isValid || !data) {
-      console.log('Invalid signature');
+      AppLogger.warn('Invalid signature in IPN', 'PaymentService', { query });
       return { RspCode: '97', Message: 'Invalid signature' };
     }
 
     const responseCode = data.vnp_ResponseCode;
 
     if (responseCode === '00') {
-      console.log('decoded txn ref:', this.decodeTxnRef(data.vnp_TxnRef));
+      const decodedRef = this.decodeTxnRef(data.vnp_TxnRef);
+      AppLogger.log('Decoded transaction ref', 'PaymentService', decodedRef);
       // TODO: update order status here
-      const { orderId } = this.decodeTxnRef(data.vnp_TxnRef);
+      const { orderId } = decodedRef;
       const order = await this.orderRepository.findOne({
         where: { id: orderId },
+        relations: ['user', 'orderDetails', 'orderDetails.variant'],
       });
       if (!order) {
-        console.log('Order not found');
+        AppLogger.warn('Order not found in IPN', 'PaymentService', { orderId });
         return { RspCode: '98', Message: 'Order not found' };
       }
       order.status = OrderStatus.PAID;
       await this.orderRepository.save(order);
       const orderDetails = await this.orderDetailRepository.find({
         where: { order: { id: orderId } },
+        relations: ['variant'],
       });
       for (const orderDetail of orderDetails) {
-        const cartItem = await this.cartItemRepository.findOne({
-          where: {
-            cart: { user: { id: order.user.id } },
-            variant: { id: orderDetail.variant.id },
-          },
-        });
-        if (cartItem) {
-          const newQuantity = cartItem.quantity - orderDetail.quantity;
-          if (newQuantity > 0) {
-            cartItem.quantity = newQuantity;
-            await this.cartItemRepository.save(cartItem);
-          } else {
-            await this.cartItemRepository.remove(cartItem);
-          }
+        const cartItem = await this.cartItemRepository
+          .createQueryBuilder('cartItem')
+          .leftJoinAndSelect('cartItem.cart', 'cart')
+          .leftJoinAndSelect('cart.user', 'user')
+          .where('user.id = :userId', { userId: order.user.id })
+          .andWhere('cartItem.variantId = :variantId', {
+            variantId: orderDetail.variant.id,
+          })
+          .getOne();
+        if (!cartItem) {
+          AppLogger.warn(
+            'Cart item not found when processing payment',
+            'PaymentService',
+            {
+              variantId: orderDetail.variant.id,
+              userId: order.user.id,
+            },
+          );
+          continue;
+        }
+        const newQuantity = cartItem.quantity - orderDetail.quantity;
+        if (newQuantity > 0) {
+          cartItem.quantity = newQuantity;
           await this.cartItemRepository.save(cartItem);
+        } else {
+          await this.cartItemRepository.remove(cartItem);
         }
       }
       return { RspCode: '00', Message: 'Success' };
     }
 
-    console.log('Payment failed');
+    AppLogger.warn('Payment failed in IPN', 'PaymentService', {
+      responseCode: responseCode ?? '01',
+      txnRef: data.vnp_TxnRef,
+    });
     return { RspCode: responseCode ?? '01', Message: 'Payment failed' };
   }
 
@@ -274,7 +292,9 @@ export class PaymentService {
   } {
     try {
       const decoded = Buffer.from(ref, 'base64').toString('utf8');
-      console.log('decoded:', decoded);
+      AppLogger.debug('Decoded transaction reference', 'PaymentService', {
+        decoded,
+      });
       const [userIdStr, orderIdStr] = decoded.split(':');
       const userId = Number(userIdStr);
       const orderId = Number(orderIdStr);
