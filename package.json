@@ -22,7 +22,10 @@
     "typeorm:migrate": "typeorm-ts-node-commonjs migration:run -d src/modules/database/data-source.ts",
     "typeorm:revert": "typeorm-ts-node-commonjs migration:revert -d src/modules/database/data-source.ts",
     "typeorm:create": "typeorm-ts-node-commonjs migration:create",
-    "typeorm:migrate:prod": "typeorm migration:run -d dist/modules/database/data-source.js"
+    "typeorm:migrate:prod": "typeorm migration:run -d dist/modules/database/data-source.js",
+    "post-pull": "chmod +x ./scripts/post-pull.sh && ./scripts/post-pull.sh",
+    "docker:rebuild": "docker compose up backend -d --build",
+    "docker:migrate": "docker compose exec backend npm run typeorm:migrate:prod"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.940.0",

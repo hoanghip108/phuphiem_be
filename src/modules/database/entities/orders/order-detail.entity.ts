@@ -17,4 +17,7 @@ export class OrderDetail extends BaseEntity {
   // Snapshot đơn giá tại thời điểm đặt hàng
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
   unitPrice: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  note: string | null;
 }

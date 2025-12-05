@@ -1,33 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  ArrayMinSize,
-  IsArray,
-  IsInt,
-  IsOptional,
-  IsString,
-  Min,
-  ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-
-export class ProductVariantItemDto {
-  @ApiProperty({
-    description: 'Product variant ID',
-    example: 1,
-  })
-  @IsInt()
-  variantId: number;
-
-  @ApiProperty({
-    description: 'Quantity of this variant',
-    example: 2,
-  })
-  @IsInt()
-  @Min(1)
-  quantity: number;
-}
+import { IsInt, IsOptional, IsString } from 'class-validator';
 
 export class CreatePaymentDto {
+  @ApiProperty({
+    description: 'Existing order ID to create payment for',
+    example: 123,
+  })
+  @IsInt()
+  orderId: number;
+
   @ApiPropertyOptional({
     description: 'Bank code if you want to force a specific bank',
     example: 'NCB',
@@ -43,32 +24,4 @@ export class CreatePaymentDto {
   @IsString()
   @IsOptional()
   locale?: string; // vi or en
-
-  @ApiProperty({
-    description: 'List of product variants with quantities',
-    type: [ProductVariantItemDto],
-    example: [
-      {
-        variantId: 1,
-        quantity: 2,
-      },
-      {
-        variantId: 3,
-        quantity: 1,
-      },
-    ],
-  })
-  @IsArray()
-  @ArrayMinSize(1)
-  @ValidateNested({ each: true })
-  @Type(() => ProductVariantItemDto)
-  productVariants: ProductVariantItemDto[];
-
-  @ApiProperty({
-    description: 'Note for the order',
-    example: 'Note for the order',
-  })
-  @IsString()
-  @IsOptional()
-  note?: string;
 }
